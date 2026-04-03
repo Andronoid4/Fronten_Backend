@@ -1,59 +1,50 @@
 <!DOCTYPE html>
 <html lang="ru">
-<!DOCTYPE html>
-<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Заметки офлайн — PWA</title>
     
-    <!-- Web App Manifest -->
     <link rel="manifest" href="./manifest.json">
-    
-    <!-- Meta-теги для PWA -->
-    <meta name="theme-color" content="#2563eb">
+    <meta name="theme-color" content="#6366f1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/favicon-152x152.png">
-    
-    <!-- Favicon -->
+    <link rel="apple-touch-icon" href="./icons/icon-152x152.png">
     <link rel="icon" href="./icons/favicon.ico" type="image/x-icon">
     
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-wrapper">
-        <header class="app-header">
-            <div class="header-content">
-                <h1>📌 Мои Заметки</h1>
-                <div class="connection-status">
-                    <span id="status-indicator" class="status-dot online"></span>
-                    <span id="status-text">Онлайн</span>
-                </div>
+    <!-- Хедер с кнопкой -->
+    <header class="app-header">
+        <div class="header-content">
+            <h1>📌 Мои Заметки</h1>
+            <div class="connection-status">
+                <span id="status-indicator" class="status-dot online"></span>
+                <span id="status-text">Онлайн</span>
             </div>
-            <button id="add-note-btn" class="primary-btn">+ Новая заметка</button>
-        </header>
+        </div>
+        
+        <!-- Навигация -->
+        <nav class="tabs">
+            <button id="home-btn" class="tab active" data-page="home">Главная</button>
+            <button id="about-btn" class="tab" data-page="about">О приложении</button>
+        </nav>
+        
+        <!-- ✅ КНОПКА НОВОЙ ЗАМЕТКИ -->
+        <button id="add-note-btn" class="primary-btn">+ Новая заметка</button>
+    </header>
 
-        <main class="notes-container">
-            <div class="search-bar">
-                <input type="text" id="search-input" placeholder="🔍 Поиск заметок...">
-            </div>
-            
-            <div id="notes-grid" class="notes-grid"></div>
-            
-            <div id="empty-state" class="empty-state">
-                <div class="empty-icon">📭</div>
-                <h3>Нет заметок</h3>
-                <p>Создайте первую заметку, нажав кнопку выше</p>
-            </div>
-        </main>
+    <!-- Динамический контент -->
+    <main id="app-content" class="container"></main>
 
-        <footer class="app-footer">
-            <p>💾 Все данные сохраняются локально</p>
-            <p>🔄 Работает без интернета</p>
-        </footer>
-    </div>
+    <!-- Футер -->
+    <footer class="app-footer">
+        <button id="enable-push" class="btn-push">🔔 Включить уведомления</button>
+        <button id="disable-push" class="btn-push hidden">🔕 Отключить уведомления</button>
+        <p class="footer-text">💾 Работает офлайн • 🔄 Синхронизация в реальном времени</p>
+    </footer>
 
     <!-- Модальное окно -->
     <div id="note-modal" class="modal hidden">
@@ -92,6 +83,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>

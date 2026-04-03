@@ -459,3 +459,145 @@ body {
         width: 100%;
     }
 }
+
+/* Tabs навигации */
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 4px;
+    border-radius: 10px;
+    max-width: 400px;
+    margin: 12px 0;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tab:hover { background: rgba(255, 255, 255, 0.2); }
+.tab.active {
+    background: white;
+    color: var(--primary-color);
+}
+
+/* Кнопки Push в футере */
+.btn-push {
+    background: var(--success-color, #22c55e);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.btn-push.hidden { display: none; }
+
+/* Тост-уведомления */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+    max-width: 350px;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* === ДОПОЛНЕНИЯ ДЛЯ APP SHELL === */
+
+/* Tabs навигации */
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 4px;
+    border-radius: 10px;
+    max-width: 400px;
+    margin: 12px 0;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.tab:hover { background: rgba(255, 255, 255, 0.2); }
+.tab.active {
+    background: white;
+    color: var(--primary-color);
+}
+
+/* Кнопки Push */
+.btn-push {
+    background: #22c55e;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    margin: 0 5px 10px;
+    transition: background 0.3s;
+}
+
+.btn-push:hover { background: #16a34a; }
+.btn-push.hidden { display: none; }
+
+/* Тост-уведомления */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #6366f1;
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 2000;
+    animation: slideIn 0.3s ease;
+    max-width: 350px;
+    font-size: 14px;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes fadeOutDown {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to { opacity: 0; transform: translate(-50%, 20px); }
+}
