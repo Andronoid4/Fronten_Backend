@@ -1,24 +1,23 @@
 const CACHE_NAME = 'app-shell-v3';
 const DYNAMIC_CACHE_NAME = 'dynamic-content-v2';
-
 const ASSETS = [
     '/',
     '/index.html',
     '/app.js',
-    '/style.css', 
+    '/styles.css',
     '/manifest.json',
-    '/content/home.html',
-    '/content/about.html',
-    '/icons/icon-16x16.png',
-    '/icons/icon-32x32.png',
-    '/icons/icon-48x48.png',
-    '/icons/icon-64x64.png',
-    '/icons/icon-128x128.png',
-    '/icons/icon-152x152.png',
-    '/icons/icon-192x192.png',
-    '/icons/icon-256x256.png',
-    '/icons/icon-512x512.png'
+    '/icons/favicon.ico',
+    '/icons/favicon-16x16.png',
+    '/icons/favicon-32x32.png',
+    '/icons/favicon-48x48.png',
+    '/icons/favicon-64x64.png',
+    '/icons/favicon-128x128.png',
+    '/icons/favicon-152x152.png',
+    '/icons/favicon-192x192.png',
+    '/icons/favicon-256x256.png',
+    '/icons/favicon-512x512.png'
 ];
+
 self.addEventListener('install', (event) => {
     console.log('Service Worker: Установка...');
     event.waitUntil(
@@ -51,20 +50,7 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
     const url = new URL(event.request.url);
     if (url.origin !== location.origin) return;
-
-    if (url.pathname.startsWith('/content/')) {
-        event.respondWith(
-            fetch(event.request)
-                .then((networkRes) => {
-                    const resClone = networkRes.clone();
-                    caches.open(DYNAMIC_CACHE_NAME).then((cache) => cache.put(event.request, resClone));
-                    return networkRes;
-                })
-                .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/content/home.html')))
-        );
-        return;
-    }
-
+    
     event.respondWith(
         caches.match(event.request)
             .then((cachedResponse) => cachedResponse || fetch(event.request)
@@ -80,16 +66,16 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
+// ==================== PUSH УВЕДОМЛЕНИЯ ====================
 self.addEventListener('push', (event) => {
-    console.log('🔔 Push событие получено в Service Worker:', event);
+    console.log('🔔 Push событие:', event);
     
     let data = {
         title: '📌 Новая заметка',
         body: 'У вас новая заметка',
-        icon: '/icons/favicon-192x192.png',
-        badge: '/icons/favicon-48x48.png'
+        reminderId: null
     };
-    
+
     if (event.data) {
         try {
             const parsed = event.data.json();
@@ -99,15 +85,24 @@ self.addEventListener('push', (event) => {
             console.error('Ошибка парсинга push данных:', err);
         }
     }
-    
+
+    // ✅ ДОБАВЛЯЕМ КНОПКУ "ОТЛОЖИТЬ" ТОЛЬКО ДЛЯ НАПОМИНАНИЙ
     const options = {
         body: data.body,
-        icon: data.icon,
-        badge: data.badge,
+        icon: '/icons/favicon-192x192.png',
+        badge: '/icons/favicon-48x48.png',
         vibrate: [100, 50, 100],
-        data: { dateOfArrival: Date.now() }
+        data: { reminderId: data.reminderId },
+        // ✅ КНОПКА ДЕЙСТВИЯ
+        actions: data.reminderId ? [
+            { 
+                action: 'snooze', 
+                title: '⏰ Отложить на 5 мин',
+                icon: '/icons/favicon-48x48.png'
+            }
+        ] : []
     };
-    
+
     event.waitUntil(
         self.registration.showNotification(data.title, options)
             .then(() => console.log('Уведомление показано'))
@@ -115,12 +110,45 @@ self.addEventListener('push', (event) => {
     );
 });
 
+// ==================== КЛИК ПО УВЕДОМЛЕНИЮ ====================
 self.addEventListener('notificationclick', (event) => {
-    console.log('🔔 Клик по уведомлению:', event);
+    console.log('🔔 Клик по уведомлению, action:', event.action);
     event.notification.close();
-    event.waitUntil(
-        clients.openWindow('/')
-            .then(() => console.log('Окно открыто'))
-            .catch(err => console.error('Ошибка открытия окна:', err))
-    );
+    
+    // ✅ ОБРАБОТКА КНОПКИ "ОТЛОЖИТЬ"
+    if (event.action === 'snooze') {
+        const reminderId = event.notification.data.reminderId;
+        console.log('⏰ Snooze нажат, reminderId:', reminderId);
+        
+        event.waitUntil(
+            fetch(`${self.location.origin}/snooze?reminderId=${reminderId}`, {
+                method: 'POST'
+            })
+            .then((response) => {
+                if (response.ok) {
+                    // Показываем уведомление об успешном откладывании
+                    return self.registration.showNotification('⏰ Напоминание отложено', {
+                        body: 'Напоминание перенесено на 5 минут',
+                        icon: '/icons/favicon-192x192.png',
+                        badge: '/icons/favicon-48x48.png',
+                        vibrate: [100, 50, 100]
+                    });
+                }
+            })
+            .catch(err => console.error('Snooze failed:', err))
+        );
+    } else {
+        // Обычный клик — открываем приложение
+        event.waitUntil(
+            clients.matchAll({ type: 'window' })
+                .then((clientList) => {
+                    for (const client of clientList) {
+                        if (client.url === self.location.origin && 'focus' in client) {
+                            return client.focus();
+                        }
+                    }
+                    if (clients.openWindow) return clients.openWindow('./');
+                })
+        );
+    }
 });

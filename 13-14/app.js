@@ -7,7 +7,7 @@ let notes = [];
 let selectedColor = '#ffffff';
 let socket = null;
 let lastLocalNoteId = null;
-let publicKey = ''; // будет получен с сервера
+let publicKey = '';
 
 // ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
 function escapeHtml(text) {
@@ -27,7 +27,6 @@ function urlBase64ToUint8Array(base64String) {
     return outputArray;
 }
 
-// ЕДИНАЯ ФУНКЦИЯ ДЛЯ ЛОКАЛЬНЫХ УВЕДОМЛЕНИЙ (TOAST)
 function showNotificationToast(message, type = 'success') {
     const oldToast = document.querySelector('.custom-toast');
     if (oldToast) oldToast.remove();
@@ -68,13 +67,15 @@ function saveNotes() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
 }
 
-function createNoteObject(title, content, color, id = null) {
+// ✅ ИСПРАВЛЕНО: добавлен параметр reminder
+function createNoteObject(title, content, color, reminder = null, id = null) {
     return {
         id: id || Date.now().toString(),
         title: title.trim(),
         content: content.trim(),
         color: color,
         completed: false,
+        reminder: reminder, // ⏰ Поле напоминания
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
     };
@@ -86,19 +87,31 @@ function addNote(note, fromSocket = false) {
     saveNotes();
     renderNotes();
 
-    // ЛОКАЛЬНОЕ УВЕДОМЛЕНИЕ ДЛЯ СВОЕЙ ЗАМЕТКИ
     if (!fromSocket) {
         showNotificationToast(`✅ Заметка "${note.title}" добавлена!`, 'success');
     }
 
     if (!fromSocket && socket && socket.connected) {
         lastLocalNoteId = note.id;
-        socket.emit('newNote', {
-            id: note.id,
-            title: note.title,
-            content: note.content,
-            color: note.color
-        });
+        
+        // ✅ ОТПРАВЛЯЕМ НАПОМИНАНИЕ НА СЕРВЕР
+        if (note.reminder) {
+            socket.emit('newReminder', {
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                color: note.color,
+                reminderTime: note.reminder
+            });
+            console.log('⏰ Напоминание отправлено на сервер:', note.reminder);
+        } else {
+            socket.emit('newNote', {
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                color: note.color
+            });
+        }
     }
 }
 
@@ -130,11 +143,17 @@ function createNoteCard(note) {
     card.style.backgroundColor = note.color;
     if (note.completed) card.classList.add('completed');
 
+    // ⏰ Отображение иконки напоминания
+    const reminderIcon = note.reminder ? ' ⏰' : '';
+    const reminderDate = note.reminder ? 
+        `<small style="color: #64748b; display: block; margin-top: 4px;">Напоминание: ${new Date(note.reminder).toLocaleString('ru-RU')}</small>` : '';
+
     card.innerHTML = `
         <div class="note-card-header">
-            <h3 class="${note.completed ? 'done' : ''}">${escapeHtml(note.title)}</h3>
+            <h3 class="${note.completed ? 'done' : ''}">${escapeHtml(note.title)}${reminderIcon}</h3>
         </div>
         <p class="${note.completed ? 'done' : ''}">${escapeHtml(note.content)}</p>
+        ${reminderDate}
         <div class="note-card-footer">
             <button class="complete-btn">${note.completed ? '✓' : '○'}</button>
             <div class="note-actions">
@@ -175,6 +194,7 @@ function openModal(note = null) {
 
     const titleInput = document.getElementById('note-title');
     const contentInput = document.getElementById('note-content');
+    const reminderInput = document.getElementById('note-reminder'); // ⏰ Поле напоминания
     const idInput = document.getElementById('note-id');
     const modalTitle = document.getElementById('modal-title');
     const deleteBtn = document.getElementById('delete-note');
@@ -184,12 +204,21 @@ function openModal(note = null) {
         idInput.value = note.id;
         titleInput.value = note.title;
         contentInput.value = note.content;
+        // ⏰ Заполняем поле напоминания
+        if (note.reminder) {
+            const date = new Date(note.reminder);
+            date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+            reminderInput.value = date.toISOString().slice(0, 16);
+        } else {
+            reminderInput.value = '';
+        }
         selectedColor = note.color;
         deleteBtn.classList.remove('hidden');
     } else {
         modalTitle.textContent = 'Новая заметка';
         document.getElementById('note-form').reset();
         idInput.value = '';
+        reminderInput.value = '';
         selectedColor = '#ffffff';
         deleteBtn.classList.add('hidden');
     }
@@ -210,47 +239,26 @@ function updateColorSelection() {
     });
 }
 
-// ==================== НАВИГАЦИЯ ====================
-async function loadContent(page) {
-    const appContent = document.getElementById('app-content');
-    if (!appContent) return;
-    try {
-        const response = await fetch(`./content/${page}.html`);
-        const html = await response.text();
-        appContent.innerHTML = html;
-
-        if (page === 'home') {
-            const searchInput = document.getElementById('search-input');
-            if (searchInput) searchInput.oninput = (e) => renderNotes(e.target.value);
-            renderNotes();
-        }
-    } catch (err) {
-        appContent.innerHTML = `<div class="card"><p class="text-error">Ошибка загрузки контента.</p></div>`;
-        console.error(err);
-    }
-}
-
-function setActiveTab(activeId) {
-    const homeBtn = document.getElementById('home-btn');
-    const aboutBtn = document.getElementById('about-btn');
-    if (homeBtn) homeBtn.classList.remove('active');
-    if (aboutBtn) aboutBtn.classList.remove('active');
-    const activeBtn = document.getElementById(activeId);
-    if (activeBtn) activeBtn.classList.add('active');
-}
-
 // ==================== WEBSOCKET ====================
 function initSocket() {
     if (typeof io === 'undefined') return;
-    socket = io('https://localhost:3001');
+    socket = io(SERVER_URL, { transports: ['websocket'] });
+    
+    socket.on('connect', () => console.log('✅ WebSocket:', socket.id));
+    
     socket.on('noteAdded', (data) => {
         if (data.id === lastLocalNoteId) return;
-        showNotificationToast(`📌 Новая заметка от другого пользователя: ${data.title}`, 'info');
-        addNote(createNoteObject(data.title, data.content, data.color, data.id), true);
+        showNotificationToast(`📌 Новая заметка: ${data.title}`, 'info');
+        addNote(createNoteObject(data.title, data.content, data.color, null, data.id), true);
+    });
+    
+    // ⏰ Обработка напоминания от сервера
+    socket.on('reminderTriggered', (data) => {
+        showNotificationToast(`⏰ Напоминание: ${data.title}`, 'info');
     });
 }
 
-// ==================== PUSH-УВЕДОМЛЕНИЯ (опционально) ====================
+// ==================== PUSH-УВЕДОМЛЕНИЯ ====================
 async function getVapidPublicKey() {
     try {
         const response = await fetch(`${SERVER_URL}/vapid-public-key`);
@@ -374,19 +382,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             const id = document.getElementById('note-id').value;
             const title = document.getElementById('note-title').value;
             const content = document.getElementById('note-content').value;
+            const reminderInput = document.getElementById('note-reminder').value; // ⏰ Получаем дату
+            
+            // ⏰ Обработка напоминания
+            let reminderTimestamp = null;
+            if (reminderInput) {
+                reminderTimestamp = new Date(reminderInput).getTime();
+                if (reminderTimestamp <= Date.now()) {
+                    showNotificationToast('⚠️ Дата напоминания должна быть в будущем', 'error');
+                    return;
+                }
+                console.log('⏰ Напоминание установлено на:', new Date(reminderTimestamp).toLocaleString());
+            }
+            
             if (id) {
                 const note = notes.find(n => n.id === id);
                 if (note) {
                     note.title = title;
                     note.content = content;
                     note.color = selectedColor;
+                    note.reminder = reminderTimestamp;
+                    note.updatedAt = new Date().toISOString();
                     saveNotes();
                     renderNotes();
                     showNotificationToast(`✏️ Заметка "${title}" обновлена`, 'info');
                 }
             } else {
-                addNote(createNoteObject(title, content, selectedColor));
-                showNotificationToast(`✅ Заметка добавлена!`, 'success');
+                addNote(createNoteObject(title, content, selectedColor, reminderTimestamp));
             }
             closeModal();
         };
@@ -413,10 +435,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
-    const homeBtn = document.getElementById('home-btn');
-    const aboutBtn = document.getElementById('about-btn');
-    if (homeBtn) homeBtn.onclick = () => { setActiveTab('home-btn'); loadContent('home'); };
-    if (aboutBtn) aboutBtn.onclick = () => { setActiveTab('about-btn'); loadContent('about'); };
-
-    loadContent('home');
+    loadNotes();
+    renderNotes();
 });

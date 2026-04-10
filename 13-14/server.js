@@ -1,5 +1,5 @@
 const express = require('express');
-const https = require('https'); // Используем только https
+const https = require('https');
 const fs = require('fs');
 const socketIo = require('socket.io');
 const webpush = require('web-push');
@@ -19,17 +19,15 @@ webpush.setVapidDetails(
     vapidKeys.privateKey
 );
 
-const app = express(); // Сначала создаем приложение
+const app = express();
 
-// Настройки SSL (убедись, что файлы в той же папке)
+// SSL сертификаты
 const options = {
     key: fs.readFileSync(path.join(__dirname, 'localhost-key.pem')),
     cert: fs.readFileSync(path.join(__dirname, 'localhost.pem'))
 };
 
-// Создаем ОДИН сервер (HTTPS)
 const server = https.createServer(options, app);
-
 const io = socketIo(server, {
     cors: { origin: '*', methods: ['GET', 'POST'] }
 });
@@ -39,6 +37,9 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname)));
 
 let subscriptions = [];
+
+// ⏰ Хранилище напоминаний: Map<id, { timeoutId, title, content }>
+const reminders = new Map();
 
 // Эндпоинты
 app.get('/vapid-public-key', (req, res) => {
@@ -64,19 +65,55 @@ app.post('/unsubscribe', (req, res) => {
     res.status(200).json({ message: 'Подписка удалена' });
 });
 
+// ⏰ Эндпоинт для откладывания (Snooze)
+app.post('/snooze', (req, res) => {
+    const reminderId = req.query.reminderId;
+    console.log('⏰ Snooze запрос:', reminderId);
+    
+    if (!reminderId || !reminders.has(reminderId)) {
+        return res.status(404).json({ error: 'Reminder not found' });
+    }
+    
+    const reminder = reminders.get(reminderId);
+    clearTimeout(reminder.timeoutId);
+    
+    const newDelay = 5 * 60 * 1000; // 5 минут
+    const newTimeoutId = setTimeout(() => {
+        const payload = JSON.stringify({
+            title: '⏰ Напоминание (отложенное)',
+            body: reminder.title,
+            reminderId: reminderId
+        });
+        
+        subscriptions.forEach(sub => {
+            webpush.sendNotification(sub, payload).catch(err => {
+                if (err.statusCode === 410 || err.statusCode === 403) {
+                    subscriptions = subscriptions.filter(s => s.endpoint !== sub.endpoint);
+                }
+            });
+        });
+        
+        reminders.delete(reminderId);
+    }, newDelay);
+    
+    reminders.set(reminderId, { timeoutId: newTimeoutId, title: reminder.title });
+    res.status(200).json({ message: 'Reminder snoozed' });
+});
+
 // WebSocket
 io.on('connection', (socket) => {
     console.log('🔌 Клиент подключён:', socket.id);
-
+    
+    // Обычная заметка
     socket.on('newNote', (data) => {
         console.log('📝 Новая заметка:', data);
         io.emit('noteAdded', data);
-
+        
         const payload = JSON.stringify({
             title: '📌 Новая заметка',
             body: data.title || data.content || 'Без названия'
         });
-
+        
         subscriptions.forEach(sub => {
             webpush.sendNotification(sub, payload).catch(err => {
                 if (err.statusCode === 410 || err.statusCode === 403) {
@@ -85,7 +122,49 @@ io.on('connection', (socket) => {
             });
         });
     });
-
+    
+    // ⏰ НАПОМИНАНИЕ С ПЛАНИРОВАНИЕМ
+    socket.on('newReminder', (data) => {
+        const { id, title, content, reminderTime } = data;
+        const delay = reminderTime - Date.now();
+        
+        console.log(`⏰ Напоминание запланировано: ${title}`);
+        console.log(`⏰ Текущее время: ${new Date().toLocaleString()}`);
+        console.log(`⏰ Время напоминания: ${new Date(reminderTime).toLocaleString()}`);
+        console.log(`⏰ Задержка: ${delay}мс (${Math.round(delay/1000/60)} мин)`);
+        
+        if (delay <= 0) {
+            console.log('⏰ Время уже прошло, отправляем сразу');
+            io.emit('reminderTriggered', { title, content });
+            return;
+        }
+        
+        const timeoutId = setTimeout(() => {
+            const payload = JSON.stringify({
+                title: '⏰ Напоминание',
+                body: title,
+                reminderId: id // ✅ Важно для snooze
+            });
+            
+            console.log('⏰ Время напоминания пришло:', title);
+            
+            subscriptions.forEach(sub => {
+                webpush.sendNotification(sub, payload).catch(err => {
+                    console.error('Push ошибка:', err);
+                    if (err.statusCode === 410 || err.statusCode === 403) {
+                        subscriptions = subscriptions.filter(s => s.endpoint !== sub.endpoint);
+                    }
+                });
+            });
+            
+            io.emit('reminderTriggered', { title, content });
+            reminders.delete(id);
+        }, delay);
+        
+        reminders.set(id, { timeoutId, title, content });
+        console.log('⏰ Таймер установлен, ID:', id);
+    });
+    
     socket.on('disconnect', () => {
         console.log('🔌 Клиент отключён:', socket.id);
     });

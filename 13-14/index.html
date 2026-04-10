@@ -4,47 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Заметки офлайн — PWA</title>
-    
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6366f1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="./icons/icon-152x152.png">
+    <link rel="apple-touch-icon" href="./icons/favicon-152x152.png">
     <link rel="icon" href="./icons/favicon.ico" type="image/x-icon">
-    
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-    <!-- Хедер с кнопкой -->
-    <header class="app-header">
-        <div class="header-content">
-            <h1>📌 Мои Заметки</h1>
-            <div class="connection-status">
-                <span id="status-indicator" class="status-dot online"></span>
-                <span id="status-text">Онлайн</span>
+    <div class="app-wrapper">
+        <header class="app-header">
+            <div class="header-content">
+                <h1>📌 Мои Заметки</h1>
+                <div class="connection-status">
+                    <span id="status-indicator" class="status-dot online"></span>
+                    <span id="status-text">Онлайн</span>
+                </div>
             </div>
-        </div>
-        
-        <!-- Навигация -->
-        <nav class="tabs">
-            <button id="home-btn" class="tab active" data-page="home">Главная</button>
-            <button id="about-btn" class="tab" data-page="about">О приложении</button>
-        </nav>
-        
-        <!-- ✅ КНОПКА НОВОЙ ЗАМЕТКИ -->
-        <button id="add-note-btn" class="primary-btn">+ Новая заметка</button>
-    </header>
+            <button id="add-note-btn" class="primary-btn">+ Новая заметка</button>
+        </header>
 
-    <!-- Динамический контент -->
-    <main id="app-content" class="container"></main>
+        <main class="notes-container">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="🔍 Поиск заметок...">
+            </div>
+            <div id="notes-grid" class="notes-grid"></div>
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">📭</div>
+                <h3>Нет заметок</h3>
+                <p>Создайте первую заметку</p>
+            </div>
+        </main>
 
-    <!-- Футер -->
-    <footer class="app-footer">
-        <button id="enable-push" class="btn-push">🔔 Включить уведомления</button>
-        <button id="disable-push" class="btn-push hidden">🔕 Отключить уведомления</button>
-        <p class="footer-text">💾 Работает офлайн • 🔄 Синхронизация в реальном времени</p>
-    </footer>
+        <footer class="app-footer">
+            <button id="enable-push" class="btn-push">🔔 Включить уведомления</button>
+            <button id="disable-push" class="btn-push hidden">🔕 Отключить уведомления</button>
+            <p class="footer-text">💾 Офлайн • 🔄 WebSocket • 🔔 Push • ⏰ Напоминания</p>
+        </footer>
+    </div>
 
     <!-- Модальное окно -->
     <div id="note-modal" class="modal hidden">
@@ -56,15 +55,23 @@
             <form id="note-form">
                 <input type="hidden" id="note-id">
                 <div class="form-group">
-                    <label for="note-title">Заголовок</label>
-                    <input type="text" id="note-title" placeholder="Введите заголовок..." required>
+                    <label>Заголовок</label>
+                    <input type="text" id="note-title" placeholder="Заголовок..." required>
                 </div>
                 <div class="form-group">
-                    <label for="note-content">Содержимое</label>
-                    <textarea id="note-content" placeholder="Введите текст заметки..." rows="6" required></textarea>
+                    <label>Содержимое</label>
+                    <textarea id="note-content" placeholder="Текст..." rows="6" required></textarea>
                 </div>
+                
+                <!-- ⏰ ПОЛЕ НАПОМИНАНИЯ -->
                 <div class="form-group">
-                    <label for="note-color">Цвет заметки</label>
+                    <label>⏰ Напомнить (необязательно)</label>
+                    <input type="datetime-local" id="note-reminder">
+                    <small style="color: #64748b; font-size: 12px;">Оставьте пустым, если напоминание не нужно</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Цвет</label>
                     <div class="color-picker">
                         <button type="button" class="color-option selected" data-color="#ffffff"></button>
                         <button type="button" class="color-option" data-color="#fef3c7"></button>
