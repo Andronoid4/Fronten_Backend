@@ -1,0 +1,28 @@
+Для запуска SQL-версии (PostgreSQL + Sequelize):
+
+Откройте терминал и выполните:
+brew services start postgresql@14
+cd /Users/andranik/Учеба/Fronten_Backend/19-20
+npm run dev
+
+Для запуска Mongo-версии (MongoDB + Mongoose):
+
+Откройте первый терминал и выполните:
+mongod --dbpath ~/data/db
+
+Откройте второй терминал и выполните:
+cd /Users/andranik/Учеба/Fronten_Backend/19-20\ copy
+npm run dev
+
+Чтобы остановить все процессы (Node, MongoDB, PostgreSQL) и освободить порты:
+
+pkill -f node
+pkill -f mongod
+brew services stop postgresql@14
+
+Если PostgreSQL запущен не через brew services, дополнительно можно выполнить:
+lsof -i :5432
+kill -9 (PID)
+
+Чтобы проверить, что все порты (3000, 27017, 5432) свободны:
+lsof -i :3000 -i :27017 -i :5432
