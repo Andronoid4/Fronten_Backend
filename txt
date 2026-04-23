@@ -1,7 +1,7 @@
 Для запуска SQL-версии (PostgreSQL + Sequelize):
 
 Откройте терминал и выполните:
-brew services start postgresql@14
+brew services start postgresql@18
 cd /Users/andranik/Учеба/Fronten_Backend/19-20
 npm run dev
 
@@ -18,11 +18,132 @@ npm run dev
 
 pkill -f node
 pkill -f mongod
-brew services stop postgresql@14
+brew services stop postgresql@18
 
 Если PostgreSQL запущен не через brew services, дополнительно можно выполнить:
 lsof -i :5432
 kill -9 (PID)
 
 Чтобы проверить, что все порты (3000, 27017, 5432) свободны:
-lsof -i :3000 -i :27017 -i :5432
+lsof -i :3000 -i :3001 -i :27017 -i :5432
+
+
+
+git add .
+git commit -m "message"
+git pull origin main --rebase   # сначала подтянуть изменения
+git push origin main
+
+21:
+brew services start redis
+redis-cli ping
+node server.js 
+brew services stop redis
+
+Регистрация админа
+
+Thunder Client:
+Метод: POST
+URL: http://localhost:3000/api/auth/register
+Body (JSON):
+{
+  "username": "admin",
+  "password": "123456",
+  "role": "admin"
+}
+
+Скопируй accessToken: 
+
+Логин
+
+Метод: POST
+URL: http://localhost:3000/api/auth/login
+Body:
+{
+  "username": "admin",
+  "password": "123456"
+}
+
+Проверка кэша пользователей
+
+Метод: GET
+URL: http://localhost:3000/api/users
+Header:
+Authorization: Bearer <токен>
+1-й запрос "source": "server"
+2-й запрос "source": "cache"
+
+Создание товара (нужен admin/seller)
+
+Метод: POST
+URL: http://localhost:3000/api/products
+Header: Authorization: Bearer <токен> 
+Body:
+{
+  "name": "Телефон",
+  "price": 50000,
+  "description": "Смартфон"
+}
+
+Проверка кэша товаров
+
+Метод: GET
+URL: http://localhost:3000/api/products
+Header: Authorization: Bearer <токен>
+1-й раз "source": "server"
+2-й раз "source": "cache"
+
+Блокировка пользователя 
+
+Метод: DELETE
+URL: http://localhost:3000/api/users/ (ID нужного пользователя)
+Header:
+Authorization: Bearer <токен_админа>
+
+22:
+cd "/Users/andranik/Учеба/Fronten_Backend/22"
+docker compose up -d --build
+
+Статус контейнеров
+docker compose ps
+
+Тест балансировки через Nginx (порт 80)
+curl http://localhost/
+curl http://localhost/
+curl http://localhost/
+
+Тест балансировки через HAProxy (порт 8080)
+curl http://localhost:8080/
+
+Проверка логов конкретного сервиса (если что-то не работает)
+docker-compose logs nginx
+docker-compose logs haproxy
+docker-compose logs backend1
+
+Остановить один бэкенд
+docker-compose stop backend1
+
+Проверить, что трафик идёт на остальные
+curl http://localhost/
+curl http://localhost/
+
+Запустить бэкенд обратно
+docker-compose start backend1
+
+Остановка и удаление контейнеров (образы сохранятся)
+docker compose down
+
+Если нужно удалить и образы 
+docker-compose down --rmi all
+
+cd "/Users/andranik/Учеба/Fronten_Backend/22" && \
+docker-compose up -d --build && \
+sleep 5 && \
+echo "=== Статус контейнеров ===" && \
+docker-compose ps && \
+echo -e "\n=== Тест Nginx ===" && \
+curl http://localhost/ && echo && \
+curl http://localhost/ && echo && \
+curl http://localhost/ && echo && \
+echo -e "\n=== Тест HAProxy ===" && \
+curl http://localhost:8080/ && echo
